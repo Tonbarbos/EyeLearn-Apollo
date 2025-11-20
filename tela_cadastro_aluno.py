@@ -1,16 +1,51 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-    QComboBox, QDateEdit, QFormLayout, QSizePolicy, QScrollArea, QFrame
+    QComboBox, QDateEdit, QFormLayout, QSizePolicy, QScrollArea, QFrame,
+    QMessageBox
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import Qt, QDate, pyqtSignal
 from PyQt6.QtGui import QFont
+from database import DatabaseManager
 import qtawesome as qta
 
 class TelaCadastroAluno(QWidget):
+    cadastro_realizado = pyqtSignal(int)
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setup_ui()
 
+        self.continue_button.clicked.connect(self.salvar_aluno)
+
+    def salvar_aluno(self):
+        nome = self.nome_completo_input.text()
+        data_nasc = self.data_nascimento_input.date().toString("yyyy-MM-dd")
+        genero = self.genero_combo.currentText()
+        instituicao = self.instituicao_input.text()
+        serie = self.serie_escolar_combo.currentText()
+        turma = self.turma_input.text()
+
+        # Validação simples
+        if not nome or genero == "Selecione" or serie == "Selecione":
+            QMessageBox.warning(self, "Atenção", "Por favor, preencha os campos obrigatórios.")
+            return
+
+        # Insere no Banco
+        db = DatabaseManager()
+        query = """
+                    INSERT INTO Alunos (nomeCompleto, dataNascimento, genero, nomeEscola, serieEscola, turma)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """
+
+        try:
+            aluno_id = db.execute_query(query, (nome, data_nasc, genero, instituicao, serie, turma))
+            if aluno_id:
+                print(f"Sucesso! Aluno cadastrado com ID: {aluno_id}")
+                # IMPORTANTE: Emite o sinal para o main.py trocar a tela
+                self.cadastro_realizado.emit(aluno_id)
+            else:
+                QMessageBox.critical(self, "Erro", "Não foi possível salvar no banco de dados.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao conectar ao banco: {e}")
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)

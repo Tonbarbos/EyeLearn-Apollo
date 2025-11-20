@@ -1,7 +1,10 @@
+**** Usuário MySql = 'admin', senha = '$enhaF0rt3'
+
 python -m venv venv
 
 venv\Scripts\activate
 
-pip install - r requirements.txt
+pip install -r requirements.txt
+python setup_database.py (para reiniciar o banco antigo)
 
-phyton main.py
+python main.py (para rodar o banco atual)

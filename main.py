@@ -12,11 +12,13 @@ from tela_eye_tracker_master import TelaEyeTrackerMaster
 from tela_parabens import TelaParabens
 from tela_painel_professor import TelaPainelProfessor
 from tela_detalhes_aluno import TelaDetalhesAluno
-from tela_fim_sessao import TelaFimSessao # Nova importação
+from tela_fim_sessao import TelaFimSessao
+from tela_login_aluno import TelaLoginAluno
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.aluno_logado_id = None
         self.setWindowTitle("EyeLearn")
         self.setGeometry(100, 100, 480, 800) # Tamanho inicial simulando um celular
 
@@ -29,6 +31,7 @@ class MainWindow(QMainWindow):
     def setup_ui(self):
         # Telas da aplicação
         self.tela_inicial = TelaInicial()
+        self.tela_login_aluno = TelaLoginAluno()
         self.tela_cadastro_aluno = TelaCadastroAluno()
         self.tela_principal_aluno = TelaPrincipalAluno()
         self.tela_calibracao_eye_tracking = TelaCalibracaoEyeTracking()
@@ -41,6 +44,7 @@ class MainWindow(QMainWindow):
         self.tela_fim_sessao = TelaFimSessao() # Nova instância
 
         self.stacked_widget.addWidget(self.tela_inicial)
+        self.stacked_widget.addWidget(self.tela_login_aluno)
         self.stacked_widget.addWidget(self.tela_cadastro_aluno)
         self.stacked_widget.addWidget(self.tela_principal_aluno)
         self.stacked_widget.addWidget(self.tela_calibracao_eye_tracking)
@@ -57,15 +61,19 @@ class MainWindow(QMainWindow):
 
     def setup_connections(self):
         # Transições da Tela Inicial
-        self.tela_inicial.aluno_button.clicked.connect(lambda: self.fade_transition(self.tela_cadastro_aluno))
+        self.tela_inicial.aluno_button.clicked.connect(lambda: self.fade_transition(self.tela_login_aluno))
         self.tela_inicial.professor_button.clicked.connect(lambda: self.fade_transition(self.tela_painel_professor))
 
-        # Transições da Tela de Cadastro de Aluno
-        self.tela_cadastro_aluno.back_button.clicked.connect(lambda: self.fade_transition(self.tela_inicial))
-        self.tela_cadastro_aluno.continue_button.clicked.connect(lambda: self.fade_transition(self.tela_principal_aluno))
+        # --- TELA DE LOGIN DE ALUNO ---
+        self.tela_login_aluno.back_to_inicial.connect(lambda: self.fade_transition(self.tela_inicial))
+        self.tela_login_aluno.ir_para_cadastro.connect(lambda: self.fade_transition(self.tela_cadastro_aluno))
+        self.tela_login_aluno.login_realizado.connect(self.processar_login_aluno)
 
+        # Transições da Tela de Cadastro de Aluno
+        self.tela_cadastro_aluno.back_button.clicked.connect(lambda: self.fade_transition(self.tela_login_aluno))
+        self.tela_cadastro_aluno.cadastro_realizado.connect(self.processar_login_aluno)
         # Conexões da TelaPrincipalAluno
-        self.tela_principal_aluno.jogo_memoria_button.clicked.connect(lambda: self.fade_transition(self.tela_jogo_memoria))
+        self.tela_principal_aluno.jogo_memoria_button.clicked.connect(self.iniciar_jogo_memoria)
         self.tela_principal_aluno.nav_configuracoes_button.clicked.connect(lambda: self.fade_transition(self.tela_configuracoes))
         self.tela_principal_aluno.nav_logout_button.clicked.connect(lambda: self.fade_transition(self.tela_inicial)) # Conexão do botão de logout
 
@@ -99,27 +107,58 @@ class MainWindow(QMainWindow):
         self.tela_fim_sessao.go_to_nova_sessao_aluno.connect(lambda: self.fade_transition(self.tela_principal_aluno))
         self.tela_fim_sessao.go_to_professor_login.connect(lambda: self.fade_transition(self.tela_painel_professor))
 
+    def processar_login_aluno(self, aluno_id):
+        print(f"--- DEBUG MAIN: Recebi o sinal de login com ID {aluno_id} ---")
+        self.aluno_logado_id = aluno_id  # Guardamos o ID na memória
+        self.tela_principal_aluno.set_aluno(aluno_id)
+        print(f"Aluno logado no sistema: {self.aluno_logado_id}")
+        self.fade_transition(self.tela_principal_aluno)
+
+    def iniciar_jogo_memoria(self):
+        if self.aluno_logado_id:
+            # Passa o ID para a tela do jogo
+            self.tela_jogo_memoria.set_aluno(self.aluno_logado_id)
+            # Reinicia o jogo para garantir estado limpo
+            self.tela_jogo_memoria.init_game()
+            self.fade_transition(self.tela_jogo_memoria)
+        else:
+            print("Erro: Tentativa de iniciar jogo sem aluno logado.")
+            # Opcional: Voltar para tela inicial se não tiver ID
+            self.fade_transition(self.tela_inicial)
+
     def show_parabens(self, score, time_elapsed, errors):
         # Remover a tela antiga de parabéns se existir e adicionar a nova
         if self.stacked_widget.indexOf(self.tela_parabens) != -1:
             self.stacked_widget.removeWidget(self.tela_parabens)
-        self.tela_parabens = TelaParabens(score=score, time_elapsed=time_elapsed, errors=errors)
+
+        self.tela_parabens = TelaParabens(
+            score=score,
+            time_elapsed=time_elapsed,
+            errors=errors,
+            student_id=self.aluno_logado_id
+        )
+
         self.stacked_widget.addWidget(self.tela_parabens)
-        # Após a tela de parabéns, o fluxo deve ir para a tela de fim de sessão
-        self.tela_parabens.go_to_principal_aluno.connect(lambda: self.fade_transition(self.tela_fim_sessao)) # Alterado para ir para TelaFimSessao
+        self.tela_parabens.go_to_principal_aluno.connect(lambda: self.fade_transition(self.tela_fim_sessao))
         self.tela_parabens.logout_requested.connect(lambda: self.fade_transition(self.tela_inicial))
+
         self.fade_transition(self.tela_parabens)
 
-    def show_detalhes_aluno(self, aluno_nome):
-        # Remover a tela antiga de detalhes do aluno se existir e adicionar a nova
+    def show_detalhes_aluno(self, aluno_id):
         if self.stacked_widget.indexOf(self.tela_detalhes_aluno) != -1:
             self.stacked_widget.removeWidget(self.tela_detalhes_aluno)
-        self.tela_detalhes_aluno = TelaDetalhesAluno(aluno_nome=aluno_nome)
-        self.stacked_widget.addWidget(self.tela_detalhes_aluno)
-        self.tela_detalhes_aluno.go_to_painel_professor.connect(lambda: self.fade_transition(self.tela_painel_professor))
-        self.tela_detalhes_aluno.logout_requested.connect(lambda: self.fade_transition(self.tela_inicial))
-        self.fade_transition(self.tela_detalhes_aluno)
 
+        self.tela_detalhes_aluno = TelaDetalhesAluno()
+
+        self.tela_detalhes_aluno.set_aluno(aluno_id)
+
+        self.stacked_widget.addWidget(self.tela_detalhes_aluno)
+
+        self.tela_detalhes_aluno.go_to_painel_professor.connect(
+            lambda: self.fade_transition(self.tela_painel_professor))
+        self.tela_detalhes_aluno.logout_requested.connect(lambda: self.fade_transition(self.tela_inicial))
+
+        self.fade_transition(self.tela_detalhes_aluno)
     def fade_transition(self, next_widget):
         current_widget = self.stacked_widget.currentWidget()
 

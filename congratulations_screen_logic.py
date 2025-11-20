@@ -1,12 +1,30 @@
+from database import DatabaseManager
 
 class CongratulationsScreenLogic:
-    def __init__(self, score, time_elapsed, errors):
+
+    def __init__(self, score, time_elapsed, errors, student_id=None):
+        self.db = DatabaseManager()
         self._score = score
         self._time_elapsed = time_elapsed
         self._errors = errors
+        self.student_name = self._get_student_name(student_id)
+
+    def _get_student_name(self, student_id):
+        if not student_id:
+            return "Visitante"
+
+        try:
+            # Busca apenas o primeiro nome para ser mais amigável
+            query = "SELECT nomeCompleto FROM Alunos WHERE id = %s"
+            result = self.db.fetch_one(query, (student_id,))
+            if result:
+                return result['nomeCompleto'].split()[0]
+        except Exception as e:
+            print(f"Erro ao buscar nome do aluno: {e}")
+
+        return "Visitante"
 
     def get_formatted_score(self):
-        # Assuming score is a percentage or needs to be displayed as such
         return f"{self._score}%"
 
     def get_formatted_time(self):
@@ -18,11 +36,13 @@ class CongratulationsScreenLogic:
         return str(self._errors)
 
     def get_star_rating(self):
-        # Simple example: 1 star for every 20% score
-        return self._score // 20
+        if self._score >= 80: return 5
+        if self._score >= 60: return 4
+        if self._score >= 40: return 3
+        if self._score >= 20: return 2
+        return 1
 
     def get_activity_results(self):
-        # This could be expanded to include results from multiple activities
         return {
             "activity_name": "Jogo da Memória",
             "score": self.get_formatted_score(),
@@ -30,11 +50,11 @@ class CongratulationsScreenLogic:
             "errors": self.get_errors()
         }
 
-    def get_congratulations_message(self, student_name="Maria"):
-        return f"Parabéns, {student_name}!"
+    def get_congratulations_message(self):
+        return f"Parabéns, {self.student_name}!"
 
     def get_subtitle_message(self):
-        return "Você completou todas as atividades"
+        return "Você completou a atividade com sucesso!"
 
     def get_general_score_title(self):
         return "Pontuação Geral"
@@ -43,16 +63,4 @@ class CongratulationsScreenLogic:
         return "Resultados por Atividade"
 
     def get_activity_star_rating(self):
-        # Pode ser a mesma lógica do get_star_rating geral ou uma lógica específica para a atividade
-        return self._score // 20
-
-if __name__ == '__main__':
-    # Example usage
-    logic = CongratulationsScreenLogic(score=85, time_elapsed=150, errors=3)
-    print("Formatted Score:", logic.get_formatted_score())
-    print("Formatted Time:", logic.get_formatted_time())
-    print("Errors:", logic.get_errors())
-    print("Star Rating:", logic.get_star_rating())
-    print("Activity Results:", logic.get_activity_results())
-    print("Congratulations Message:", logic.get_congratulations_message())
-
+        return self.get_star_rating()

@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QLineEdit
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QPainter, QColor, QBrush
 import qtawesome as qta
@@ -60,7 +60,6 @@ class TelaInicial(QWidget):
         main_layout.addWidget(profile_selection_label)
 
         main_layout.addSpacing(20)
-
         # Botão Aluno
         self.aluno_button = self._create_profile_button("Aluno", "fa5s.user-graduate", "#4A7C8C", "white", hover_color="#3A6C7C", pressed_color="#2A5C6C")
         main_layout.addWidget(self.aluno_button)

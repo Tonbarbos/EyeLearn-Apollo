@@ -2,3 +2,4 @@ PyQt6
 QtAwesome
 numpy
 opencv-python
+mysql-connector-python

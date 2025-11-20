@@ -4,14 +4,15 @@ from PyQt6.QtGui import QFont
 import qtawesome as qta
 
 from congratulations_screen_logic import CongratulationsScreenLogic
-
+from database import DatabaseManager
 class TelaParabens(QWidget):
     go_to_principal_aluno = pyqtSignal()
     logout_requested = pyqtSignal()
 
-    def __init__(self, parent=None, score=0, time_elapsed=0, errors=0):
+    def __init__(self, parent=None, score=0, time_elapsed=0, errors=0, student_id=None):
         super().__init__(parent)
-        self.logic = CongratulationsScreenLogic(score, time_elapsed, errors)
+        # Passa o student_id para a lógica
+        self.logic = CongratulationsScreenLogic(score, time_elapsed, errors, student_id)
         self.setup_ui()
 
     def setup_ui(self):

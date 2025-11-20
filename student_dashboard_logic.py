@@ -1,54 +1,85 @@
+from database import DatabaseManager
+
 
 class StudentDashboardLogic:
-    def __init__(self, student_name="Maria", student_level=2, student_class="2º ano - Turma A"):
-        self._student_name = student_name
-        self._student_level = student_level
-        self._student_class = student_class
+    def __init__(self):
+        self.db = DatabaseManager()
+        self.student_id = None
+        # Dados padrão
+        self.student_data = {"name": "Visitante", "level": "-", "class": "-"}
 
-        self._activities = [
-            {"title": "Associação de Formas", "icon": "fa5s.puzzle-piece", "status": "Concluído", "color": "#4CAF50"},
-            {"title": "Percepção Cromática", "icon": "fa5s.palette", "status": "Disponível", "color": "#2196F3"},
-            {"title": "Reconhecimento Simbólico", "icon": "fa5s.lightbulb", "status": "Bloqueado", "color": "#9E9E9E"},
-            {"title": "Jogo da Memória", "icon": "fa5s.brain", "status": "Disponível", "color": "#FFC107"}
-        ]
+    def set_student_id(self, student_id):
+        print(f"--- DEBUG: set_student_id chamado com ID: {student_id} ---")
+        self.student_id = student_id
+        self._load_student_data()
 
-        self._recent_activities = [
-            {"title": "Associação de Formas", "icon": "fa5s.puzzle-piece", "score": "85%", "date": "Hoje, 10:30"},
-            {"title": "Percepção Cromática", "icon": "fa5s.palette", "score": "92%", "date": "Ontem, 14:15"}
-        ]
+    def _load_student_data(self):
+        if not self.student_id:
+            print("--- DEBUG: ID é None ou inválido, cancelando busca ---")
+            return
+
+        print(f"--- DEBUG: Buscando aluno ID {self.student_id} no banco... ---")
+
+        # Buscar dados do Aluno
+        query_aluno = "SELECT nomeCompleto, serieEscola, turma FROM Alunos WHERE id = %s"
+
+        try:
+            aluno = self.db.fetch_one(query_aluno, (self.student_id,))
+            print(f"--- DEBUG: Resultado do banco: {aluno} ---")
+
+            if aluno:
+                primeiro_nome = aluno['nomeCompleto'].split()[0]
+                self.student_data = {
+                    "name": primeiro_nome,
+                    "level": aluno['serieEscola'],
+                    "class": aluno['turma']
+                }
+                print(f"--- DEBUG: Dados atualizados: {self.student_data} ---")
+            else:
+                print("--- DEBUG: Aluno não encontrado no banco! ---")
+
+        except Exception as e:
+            print(f"--- DEBUG ERRO CRÍTICO: {e} ---")
 
     def get_student_info(self):
-        return {
-            "name": self._student_name,
-            "level": self._student_level,
-            "class": self._student_class
-        }
+        return self.student_data
 
     def get_greeting_message(self):
-        return f"Olá, {self._student_name}!"
+        return f"Olá, {self.student_data['name']}!"
 
     def get_available_activities(self):
-        return self._activities
+        # Por enquanto, mantemos fixo pois as atividades são do sistema, não do banco
+        return [
+            {"title": "Jogo da Memória", "icon": "fa5s.brain", "status": "Disponível", "color": "#FFC107"},
+            {"title": "Associação de Formas", "icon": "fa5s.puzzle-piece", "status": "Em Breve", "color": "#9E9E9E"},
+            {"title": "Percepção Cromática", "icon": "fa5s.palette", "status": "Em Breve", "color": "#9E9E9E"},
+        ]
 
     def get_recent_activities(self):
-        return self._recent_activities
+        if not self.student_id:
+            return []
 
-    def get_available_activities_title(self):
-        return "Atividades Disponíveis"
+        # 2. Buscar últimas sessões do aluno no banco
+        query_sessoes = """
+            SELECT 
+                pontuacao_final as score, 
+                DATE_FORMAT(data_sessao, '%d/%m %H:%i') as date
+            FROM Sessoes 
+            WHERE aluno_id = %s 
+            ORDER BY data_sessao DESC 
+            LIMIT 3
+        """
+        sessoes = self.db.fetch_all(query_sessoes, (self.student_id,))
 
-    def get_recent_activities_title(self):
-        return "Atividades Recentes"
+        activities = []
+        for s in sessoes:
+            activities.append({
+                "title": "Jogo da Memória",  # Por enquanto só temos esse jogo
+                "icon": "fa5s.brain",
+                "score": f"{s['score']} pts",
+                "date": s['date']
+            })
 
-    def logout(self):
-        # In a real application, this would handle session termination, etc.
-        print(f"Student {self._student_name} logged out.")
-        return True # Simulate successful logout
+        return activities
 
-if __name__ == '__main__':
-    logic = StudentDashboardLogic()
-    print("Student Info:", logic.get_student_info())
-    print("Greeting:", logic.get_greeting_message())
-    print("Available Activities:", logic.get_available_activities())
-    print("Recent Activities:", logic.get_recent_activities())
-    logic.logout()
 
